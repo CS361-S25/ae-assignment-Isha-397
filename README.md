@@ -40,6 +40,4 @@ The ecosystem is visualized using a grid:
 - **Red cells**: Predators
 - **Green cells**: Empty
 
-## Educational Purpose
-
-This simulation demonstrates simple ecological principles like predator-prey dynamics, energy-based survival, and reproduction. It’s designed to help explore how small changes in interaction rules or starting populations can lead to different emergent outcomes.
+# Author: Isha Patel

@@ -40,4 +40,6 @@ The ecosystem is visualized using a grid:
 - **Red cells**: Predators
 - **Green cells**: Empty
 
-# Author: Isha Patel
+# Author: 
+
+Isha Patel

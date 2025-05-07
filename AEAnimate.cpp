@@ -53,9 +53,11 @@ public:
             << "</div>";
 
 
-        // Add Predator and Prey to the world
-        Prey *prey = new Prey(&random, 2.5, 1);
-        Predator *predator = new Predator(&random, 2.5, 0);
+        // // Add Predator and Prey to the world
+        // Prey *prey = new Prey(&random, 2.5, 1);
+        // Predator *predator = new Predator(&random, 2.5, 0);
+        Prey *prey = new Prey(emp::NewPtr<emp::Random>(random), 2.5);  // No type_id needed
+        Predator *predator = new Predator(emp::NewPtr<emp::Random>(random), 2.5);
 
         world.AddOrgAt(predator, 100);
         world.AddOrgAt(prey, 10);

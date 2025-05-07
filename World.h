@@ -1,11 +1,12 @@
 #ifndef WORLD_H
 #define WORLD_H
+#pragma once
 #include "emp/Evolve/World.hpp"
 #include "emp/math/random_utils.hpp"
 #include "emp/math/Random.hpp"
 #include "Org.h"
-#include "Prey.h"
-#include "Predator.h"
+class Prey;
+class Predator;
 
 
 /**
@@ -18,6 +19,63 @@ private:
     emp::Random &random;
     emp::Ptr<emp::Random> random_ptr;
     int species;
+
+    /**
+     * @brief Check if the organism at index `idx` is dead and remove it if so.
+     * @param idx Index of the organism to check.
+     * @return true if the organism was removed, false otherwise.
+     */
+    bool CheckAndRemoveIfDead(size_t idx) {
+        if (IsOccupied(idx) && pop[idx]->ShouldDie()) {
+            RemoveOrgAt(idx);
+            return true;
+        }
+        return false;
+    }
+    
+    /**
+    * @brief Attempts reproduction for organism at specified position
+    * @param idx Grid position index of parent organism
+    * @note Creates offspring and places in random adjacent empty cell.
+    *       Deletes offspring if no space available.
+    */
+    void TryReproduceAt(size_t idx) {
+        if (!IsOccupied(idx)) return;
+        emp::Ptr<Organism> baby = pop[idx]->TryReproduce();
+        if (baby) {
+            size_t baby_pos = GetRandomNeighborPos(idx).GetIndex();
+            if (!IsOccupied(baby_pos)) {
+                AddOrgAt(baby, baby_pos);
+            } else {
+                delete baby;
+            }
+        }
+    }
+    
+    /**
+    * @brief Handles organism interaction or movement between cells
+    * @param from Source grid position index
+    * @param to Target grid position index 
+    * @return New position index of organism after interaction/movement
+    * @details If target occupied, triggers interaction. If empty, moves organism.
+    *          Returns original position if organism dies during interaction.
+    */
+    size_t HandleInteractionOrMove(size_t from, size_t to) {
+        emp::Ptr<Organism> org = pop[from];
+        if (IsOccupied(to)) {
+            org->InteractAt(*this, from, to);
+            if (!IsOccupied(from) || pop[from]->ShouldDie()) {
+                RemoveOrgAt(from);
+                return from;
+            }
+            return (pop[to] == org) ? to : from;
+        } else {
+            AddOrgAt(org, to);
+            pop[from] = nullptr;
+            return to;
+        }
+    }
+    
 
 public:
 	/**
@@ -38,12 +96,15 @@ public:
 		// Randomize update order for fairness
         auto schedule = emp::GetPermutation(random, GetSize());
 		
-		// First pass: energy consumption for prey
+		// First pass: energy consumption 
         for (auto idx : schedule) {
             if (!IsOccupied(idx)) continue;
 
             if (pop[idx]->GetType() == 1) {  
                 pop[idx]->ConsumeEnergy(10);  // Prey absorb energy from environment
+            }
+            if (pop[idx]->GetType() == 0) {
+                pop[idx]->ConsumeEnergy(.001);   // Predators absorb less
             }
         }
 
@@ -60,8 +121,12 @@ public:
 			// Attempt movement and interaction
             MoveOrganism(idx); 
         }
+        
+
     }
 
+
+    
 	/**
      * @brief Replace organism at position `to` with the one from `from`.
 	 * @param from the oragnism at index i to extract.
@@ -77,47 +142,20 @@ public:
     }
 
 	/**
- * @brief Moves the organism at index i to a neighboring cell.
- *        Handles movement, predation (if types differ), and death by low energy.
- */
-    void MoveOrganism(int i)  
-    {
-		// Select a random neighboring position to potentially move into
-        emp::WorldPosition j = GetRandomNeighborPos(i);
-
-		// CASE 1: Target cell is occupied
-        if (pop[j.GetIndex()] != nullptr)
-        {
-            if (pop[i]->GetType() != pop[j.GetIndex()]->GetType()) {
-				// If two different types meet, simulate predation
-                if (pop[i]->GetType() == 0) {
-					// Predator eats prey
-                    pop[i]->ConsumeEnergy(1.5);
-                    ReplaceOrganism(i, j.GetIndex());  
-                }
-				// If neighbor is a predator, it eats the current prey
-                if (pop[j.GetIndex()]->GetType() == 0) {
-                    pop[j.GetIndex()]->ConsumeEnergy(1.5); // Gain energy from prey
-                    ReplaceOrganism(j.GetIndex(), i);  // Move predator into prey's spot
-                }
-            }
-        }
-
-		// CASE 2: Target cell is empty
-        if (pop[j.GetIndex()] == nullptr)
-        {
-			// Move organism to the empty neighbor cell
-            emp::Ptr<Organism> organism = pop[i];
-            pop[i] = nullptr;
-            AddOrgAt(organism, j.GetIndex());
-        }
-
-		// Remove predator if energy too low
-        if (pop[i]->GetType() == 0 && pop[i].DynamicCast<Predator>()->NeedsToDie())
-        {
-            RemoveOrgAt(i); 
-        }
+    * @brief Moves the organism at index i to a neighboring cell.
+    *       Handles movement, predation (if types differ), and death by low energy.
+    */
+    void MoveOrganism(int i) {
+        if (!IsOccupied(i)) return;
+        emp::Ptr<Organism> org = pop[i];
+        org->Move();
+        if (CheckAndRemoveIfDead(i)) return;
+    
+        size_t new_pos = GetRandomNeighborPos(i).GetIndex();
+        size_t final_pos = HandleInteractionOrMove(i, new_pos);
+        TryReproduceAt(i);
+        CheckAndRemoveIfDead(final_pos);
     }
-	
+    
 };
 #endif

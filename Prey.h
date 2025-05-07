@@ -1,31 +1,62 @@
 #ifndef PREY_H
 #define PREY_H
-#include "Org.h"
 
+#include "Org.h"
+#include "World.h"
 
 /**
  * @class Prey
- * @brief Subclass of Organism. Prey can reproduce with enough energy.
+ * @brief Represents a prey organism that can move, reproduce, and be consumed by predators.
  */
-class Prey : public Organism
-{
+class Prey : public Organism {
 public:
-    Prey(emp::Ptr<emp::Random> _random, double _energy = 0.0, int _type_id = 0)
-        : Organism(_random, _energy, _type_id) {}
-
+    /**
+     * @brief Construct a new Prey organism
+     * @param _random Shared random number generator
+     * @param _energy Starting energy (default 0.0)
+     */
+    Prey(emp::Ptr<emp::Random> _random, double _energy = 0.0)
+        : Organism(_random, _energy, 1) {}
+    
+    /**
+     * @brief Check if prey should die (energy depleted)
+     * @return true if energy ≤ 0
+     */
+    bool ShouldDie() const override { 
+        return GetEnergy() <= 0;
+    }
+    
+    /**
+     * @brief Attempt to reproduce if sufficient energy
+     * @return Pointer to offspring or nullptr
+     */
+    emp::Ptr<Organism> TryReproduce() override {
+        if (GetEnergy() <= 20) return nullptr;
+        SetEnergy(GetEnergy() - 11);
+        return emp::Ptr<Organism>(new Prey(random, 0));
+    }
+    
+    /**
+     * @brief Deduct movement energy cost
+     */
+    void Move() override { 
+        SetEnergy(GetEnergy() - 0.2); 
+    }
 
     /**
-     * @brief Attempts reproduction if energy is above 10.
-     * @return New Prey offspring or nullptr.
+     * @brief Handle interaction with world at target position
+     * @param world Reference to simulation world
+     * @param from Current position index
+     * @param to Target position index
      */
-    emp::Ptr<Organism> TryReproduce()  
-    {
-        if (GetEnergy() <= 10) return nullptr;
-
-        emp::Ptr<Organism> offspring = new Organism(*this);
-        offspring->SetEnergy(0);
-        SetEnergy(GetEnergy() - 10);
-        return offspring;
+    void InteractAt(OrgWorld &world, size_t from, size_t to) override {
+        if (!world.IsOccupied(to)) {
+            world.ReplaceOrganism(from, to); // Move to empty space
+        } 
+        else if (world.GetOrgPtr(to)->GetType() == 0) {
+            SetEnergy(0); // Die if interacting with predator
+        }
     }
 };
+
 #endif

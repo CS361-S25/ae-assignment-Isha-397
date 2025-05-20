@@ -91,39 +91,58 @@ public:
 	/**
      * @brief Update all organisms: energy consumption, reproduction, and movement.
      */
-    void Update()  
-    {	
-		// Randomize update order for fairness
+    void Update() {
+        // Randomize update order for fairness
         auto schedule = emp::GetPermutation(random, GetSize());
-		
-		// First pass: energy consumption 
-        for (auto idx : schedule) {
-            if (!IsOccupied(idx)) continue;
 
-            if (pop[idx]->GetType() == 1) {  
-                pop[idx]->ConsumeEnergy(10);  // Prey absorb energy from environment
-            }
-            if (pop[idx]->GetType() == 0) {
-                pop[idx]->ConsumeEnergy(.001);   // Predators absorb less
-            }
+        // First pass: organisms consume energy based on type
+        for (auto idx : schedule) {
+            HandleEnergyConsumption(idx);
         }
 
-		// Second pass: reproduction and movement
+        // Second pass: reproduction and movement
         schedule = emp::GetPermutation(random, GetSize());
         for (auto idx : schedule) {
             if (!IsOccupied(idx)) continue;
 
-			// Attempt reproduction
-            if (auto offspring = pop[idx]->TryReproduce()) {  
-                auto new_pos = GetRandomNeighborPos(idx).GetIndex();
-                AddOrgAt(offspring, new_pos);
-            }
-			// Attempt movement and interaction
-            MoveOrganism(idx); 
+            HandleReproduction(idx);
+            MoveOrganism(idx);
         }
-        
-
     }
+
+    /**
+    * @brief Handles energy consumption for a single organism based on its type.
+    * 
+    * Predators consume minimal energy from the environment, while prey absorb more.
+    */
+    void HandleEnergyConsumption(size_t idx) {
+        if (!IsOccupied(idx)) return;
+
+        switch (pop[idx]->GetType()) {
+            case 0: // Predator
+                pop[idx]->ConsumeEnergy(0.001);
+                break;
+            case 1: // Prey
+                pop[idx]->ConsumeEnergy(10);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+    * @brief Attempts reproduction for an organism and places the offspring if possible.
+    */
+    void HandleReproduction(size_t idx) {
+        if (!IsOccupied(idx)) return;
+
+        emp::Ptr<Organism> offspring = pop[idx]->TryReproduce();
+        if (offspring) {
+            size_t new_pos = GetRandomNeighborPos(idx).GetIndex();
+            AddOrgAt(offspring, new_pos);
+        }
+    }
+
 
 
     
